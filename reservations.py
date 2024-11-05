@@ -40,6 +40,16 @@ def create_reservation(
     if user == None or book == None:
         return " El user o el book no existe"
 
+    for r in reservations:
+        if r.book.id == book_id:
+            if (
+                r.pickup_date <= return_date
+                and r.return_date >= pickup_date
+                or r.return_date >= pickup_date
+                and r.pickup_date <= return_date
+            ):
+                return " El libro ya se encuentra reservado"
+
     global last_reservation_id
     last_reservation_id = last_reservation_id + 1
     r = Reservation(
@@ -72,7 +82,7 @@ def delete_reservations(reservation_id: int):
             return "La reserva fue cancelada"
 
 
-@router.get("/reservations/reservations_id")
+@router.get("/reservations/{reservations_id}")
 def details_reservations(reservation_id: int):
     for r in reservations:
         if r.id == reservation_id:
