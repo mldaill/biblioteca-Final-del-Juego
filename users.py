@@ -118,7 +118,7 @@ router = APIRouter()
 repo = RamUserRepository(users)
 
 
-@router.get("/users")docker-compose.yml
+@router.get("/users")
 def list_users(repo: Annotated[UserRepository, Depends(lambda: repo)]):
     return repo.list()
 
