@@ -1,6 +1,9 @@
 from typing import Annotated, Protocol, Union
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+import psycopg
+from psycopg.rows import class_row
+from database import obtener_db
 
 
 class UserIn(BaseModel):
@@ -111,32 +114,97 @@ class RamUserRepository(UserRepository):
         for u in self.users:
             if u.id == id:
                 self.users.remove(u)
-        
+
+
+class UserRepositoryPostgres(UserRepository):
+    def __init__(self, conn: psycopg.Connection):
+        self.conn = conn
+
+    def list(self):
+        with self.conn.cursor(row_factory=class_row(User)) as cur:
+            cur.execute(
+                """
+                SELECT id, name, email, password, is_admin FROM users ORDER BY id
+                """
+            )
+            return cur.fetchall()
+
+    def create(self, user: UserIn) -> User:
+        with self.conn.cursor(row_factory=class_row(User)) as cur:
+            cur.execute(
+                """
+                INSERT INTO users(name, email, password, is_admin)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, name, email, password, is_admin
+                """,
+                (user.name, user.email, user.password, user.is_admin),
+            )
+            self.conn.commit()
+            new_user = cur.fetchone()
+            print(new_user)
+            return new_user
+
+    def save(self, user: User):
+        with self.conn.cursor() as cur:
+            cur.execute (
+                """
+                UPDATE users
+                SET name = %s, email = %s, password = %s, is_admin = %s
+                WHERE id = %s
+                """,
+                (user.name, user.email, user.password, user.is_admin, user.id),
+            ) 
+            self.conn.commit()
+
+    def get(self, id: int) -> User | None:
+        with self.conn.cursor(row_factory=class_row(User)) as cur:
+            query = """
+               SELECT id, name, email, password, is_admin FROM users WHERE id=%s  
+               """
+            cur.execute(query, (id,))
+            return cur.fetchone()
+
+    def delete(self, id: int):
+        with self.conn.cursor() as cur:
+            query = """
+            DELETE FROM users WHERE id = %s
+            """
+            cur.execute(query, (id,))
+            self.conn.commit()
 
 
 router = APIRouter()
 repo = RamUserRepository(users)
 
 
+def get_user_repository(
+    conn: Annotated[psycopg.Connection, Depends(obtener_db)]
+) -> UserRepository:
+    return UserRepositoryPostgres(conn)
+
+
 @router.get("/users")
-def list_users(repo: Annotated[UserRepository, Depends(lambda: repo)]):
+def list_users(repo: Annotated[UserRepository, Depends(get_user_repository)]):
     return repo.list()
 
 
 @router.post("/users")
-def create_new_user(user_in: UserIn, repo: Annotated[UserRepository, Depends(lambda: repo)]):
+def create_new_user(
+    user_in: UserIn, repo: Annotated[UserRepository, Depends(get_user_repository)]
+):
     return repo.create(user_in)
 
 
 @router.delete("/users/{user_id}")
-def delete_user(user_id: int, repo: Annotated[UserRepository, Depends(lambda: repo)]):
+def delete_user(user_id: int, repo: Annotated[UserRepository, Depends(get_user_repository)]):
     return repo.delete(user_id)
 
 
 @router.put("/users")
-def update_user(user: User , repo: Annotated[UserRepository, Depends(lambda: repo)]):
+def update_user(user: User, repo: Annotated[UserRepository, Depends(get_user_repository)]):
     return repo.save(user)
 
+
 @router.get("/users/{user_id}")
-def get_user(user_id: int, repo: Annotated[UserRepository, Depends(lambda: repo)]):
+def get_user(user_id: int, repo: Annotated[UserRepository, Depends(get_user_repository)]):
     return repo.get(user_id)

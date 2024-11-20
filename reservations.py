@@ -12,7 +12,6 @@ class ReservationIn(BaseModel):
     isbn: str
     pickup_date: date
     return_date: date
-docker-compose.yml
 
 class Reservation(BaseModel):
     id: int
