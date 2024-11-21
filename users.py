@@ -131,14 +131,12 @@ class UserRepositoryPostgres(UserRepository):
 
     def create(self, user: UserIn) -> User:
         with self.conn.cursor(row_factory=class_row(User)) as cur:
-            cur.execute(
-                """
+            query= """
                 INSERT INTO users(name, email, password, is_admin)
                 VALUES (%s, %s, %s, %s)
                 RETURNING id, name, email, password, is_admin
-                """,
-                (user.name, user.email, user.password, user.is_admin),
-            )
+                """
+            cur.execute(query,(user.name, user.email, user.password, user.is_admin))
             self.conn.commit()
             new_user = cur.fetchone()
             print(new_user)
@@ -146,14 +144,12 @@ class UserRepositoryPostgres(UserRepository):
 
     def save(self, user: User):
         with self.conn.cursor() as cur:
-            cur.execute (
-                """
+            query= """
                 UPDATE users
                 SET name = %s, email = %s, password = %s, is_admin = %s
                 WHERE id = %s
-                """,
-                (user.name, user.email, user.password, user.is_admin, user.id),
-            ) 
+                """
+            cur.execute (query,(user.name, user.email, user.password, user.is_admin, user.id)) 
             self.conn.commit()
 
     def get(self, id: int) -> User | None:

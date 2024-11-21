@@ -1,6 +1,10 @@
 from typing import Annotated, Protocol, Union
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
+import psycopg
+from psycopg.rows import class_row
+from database import obtener_db
+from fastapi import HTTPException, Response, status
 
 
 class Book(BaseModel):
@@ -70,7 +74,7 @@ class RamBookRepository(BookRepository):
         for b in self.books:
             if b.isbn == isbn:
                 return b
-            return None
+        return None
 
     def delete(self, isbn: str):
         for b in self.books:
@@ -78,26 +82,92 @@ class RamBookRepository(BookRepository):
                 self.books.remove(b)
 
 
+class BookRepositoryPostgres(BookRepository):
+    def __init__(self, conn: psycopg.Connection):
+        self.conn = conn
+
+    def list(self):
+        with self.conn.cursor(row_factory=class_row(Book)) as cur:
+            cur.execute(
+                """
+                SELECT isbn, title, author, published_year, category_id FROM books
+                """
+            )
+            return cur.fetchall()
+
+    def save(self, book: Book):
+        with self.conn.cursor() as cur:
+            query = """
+                INSERT INTO books (isbn, title, author, published_year, category_id)
+                VALUES (%s, %s, %s, %s, %s)
+                ON CONFLICT (isbn)
+                DO UPDATE SET title = EXCLUDED.title, author = EXCLUDED.author,
+                published_year = EXCLUDED.published_year, category_id = EXCLUDED.category_id
+                """
+            cur.execute(
+                query,
+                (
+                    book.isbn,
+                    book.title,
+                    book.author,
+                    book.published_year,
+                    book.category_id,
+                ),
+            )
+            self.conn.commit()
+
+    def get(self, isbn: str) -> Book | None:
+        with self.conn.cursor(row_factory=class_row(Book)) as cur:
+            query = """
+            SELECT isbn, title, author, published_year, category_id FROM books WHERE isbn = %s
+            """
+            cur.execute(query, (isbn,))
+            return cur.fetchone()
+
+    def delete(self, isbn: str):
+        with self.conn.cursor() as cur:
+            query = """
+            DELETE FROM books WHERE isbn = %s
+            """
+            cur.execute(query, (isbn,))
+            self.conn.commit()
+
+
 router = APIRouter()
 repo = RamBookRepository(books)
 
 
+def get_book_repository(
+    conn: Annotated[psycopg.Connection, Depends(obtener_db)]
+) -> BookRepository:
+    return BookRepositoryPostgres(conn)
+
+
 @router.get("/books")
-def list_books(repo: Annotated[BookRepository, Depends(lambda: repo)]):
+def list_books(repo: Annotated[BookRepository, Depends(get_book_repository)]):
     return repo.list()
 
 
 @router.put("/books")
-def insert_book(book: Book, repo: Annotated[BookRepository, Depends(lambda: repo)]):
+def insert_book(
+    book: Book,
+    repo: Annotated[BookRepository, Depends(get_book_repository)],
+):
     repo.save(book)
-    return "Libro creado"
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.delete("/books/{isbn}")
-def delete_book(isbn: str, repo: Annotated[BookRepository, Depends(lambda: repo)]):
+def delete_book(
+    isbn: str, repo: Annotated[BookRepository, Depends(get_book_repository)]
+):
     repo.delete(isbn)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/books/{isbn}")
-def get_book(isbn: str, repo: Annotated[BookRepository, Depends(lambda: repo)]):
-    return repo.get(isbn)
+def get_book(isbn: str, repo: Annotated[BookRepository, Depends(get_book_repository)]):
+    book = repo.get(isbn)
+    if not book:
+        raise HTTPException(status_code=404, detail="Libro no encontrado")
+    return book

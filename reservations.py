@@ -1,10 +1,13 @@
 from typing import Annotated, Protocol, Union
 from typing import List
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 from pydantic import BaseModel
-from books import Book, books
-from users import User, users
+from books import Book, BookRepository, books, get_book_repository
+from users import User, UserRepository, get_user_repository, users
 from datetime import date
+import psycopg
+from psycopg.rows import class_row
+from database import obtener_db
 
 
 class ReservationIn(BaseModel):
@@ -13,10 +16,11 @@ class ReservationIn(BaseModel):
     pickup_date: date
     return_date: date
 
+
 class Reservation(BaseModel):
     id: int
-    book: Book
-    user: User
+    user_id: int
+    isbn: str
     pickup_date: date
     return_date: date
 
@@ -25,7 +29,7 @@ class ReservationRepository(Protocol):
 
     def list(self) -> List[Reservation]: ...
 
-    def create(self, user: User, book: Book) -> Reservation: ...
+    def create(self, reservation_in: ReservationIn) -> Reservation: ...
 
     def save(self, reservation: Reservation): ...
 
@@ -42,14 +46,14 @@ class RamReservationRepository(ReservationRepository):
     def list(self) -> List[Reservation]:
         return self.reservations
 
-    def create(self, user: User, book: Book) -> Reservation:
+    def create(self, reservation_in: ReservationIn) -> Reservation:
         self.last_reservation_id += 1
-        r = Reservation(
+        r = ReservationIn(
             id=self.last_reservation_id,
-            book=book,
-            user=user,
-            pickup_date=date.today(),
-            return_date=date.today(),
+            isbn=reservation_in.isbn,
+            user_id=reservation_in.user_id,
+            pickup_date=reservation_in.pickup_date,
+            return_date=reservation_in.return_date,
         )
         self.reservations.append(r)
         return r
@@ -72,49 +76,93 @@ class RamReservationRepository(ReservationRepository):
                 self.reservations.remove(r)
 
 
+class ReservationRepositoryPostgres(ReservationRepository):
+    def __init__(self, conn: psycopg.Connection):
+        self.conn = conn
+
+    def list(self):
+        with self.conn.cursor(row_factory=class_row(Reservation)) as cur:
+            cur.execute(
+                """
+                SELECT id, pickup_date, return_date, user_id , isbn
+                FROM reservations
+                """
+            )
+            return cur.fetchall()
+
+    def create(self, reservation_in: ReservationIn) -> Reservation:
+        with self.conn.cursor(row_factory=class_row(Reservation)) as cur:
+            query = """
+                INSERT INTO reservations (user_id, isbn, pickup_date, return_date)
+                VALUES (%s, %s, %s, %s)
+                RETURNING id, user_id, isbn, pickup_date, return_date
+                """
+            cur.execute(
+                query,
+                (
+                    reservation_in.user_id,
+                    reservation_in.isbn,
+                    reservation_in.pickup_date,
+                    reservation_in.return_date,
+                ),
+            )
+            self.conn.commit()
+            return cur.fetchone()
+
+    def get(self, id: int) -> Reservation | None:
+        with self.conn.cursor(row_factory=class_row(Reservation)) as cur:
+            query = """
+                SELECT user_id, isbn, pickup_date, return_date FROM reservations WHERE id = %s
+                """
+            cur.execute(query, (id,))
+            return cur.fetchone()
+
+    def delete(self, id: int):
+        with self.conn.cursor() as cur:
+            query = """
+            DELETE FROM reservations WHERE id = %s
+            """
+            cur.execute(query, (id,))
+            self.conn.commit()
+
+
 router = APIRouter()
 repo = RamReservationRepository([])
 
 
+def get_reservation_repository(
+    conn: Annotated[psycopg.Connection, Depends(obtener_db)]
+) -> ReservationRepository:
+    return ReservationRepositoryPostgres(conn)
+
+
 @router.post("/reservations")
 def create_reservation(
-    user_id: int,
-    isbn: str,
-    pickup_date: date,
-    return_date: date,
-    repo: Annotated[ReservationRepository, Depends(lambda: repo)],
+    reservation_in: ReservationIn,
+    repo: Annotated[ReservationRepository, Depends(get_reservation_repository)],
+    user_repo: Annotated[UserRepository, Depends(get_user_repository)],
+    book_repo: Annotated[BookRepository, Depends(get_book_repository)],
 ):
-    user = None
-    book = None
-
-    for u in users:
-        if u.id == user_id:
-            user = u
-            break
-    for b in books:
-        if b.isbn == isbn:
-            book = b
-            break
+    user = user_repo.get(reservation_in.user_id)
+    book = book_repo.get(reservation_in.isbn)
     if user == None or book == None:
-        return "El user o el book no existe"
+        return Response(
+            "El user o el book no existe", status_code=status.HTTP_400_BAD_REQUEST
+        )
 
     for r in repo.list():
-        if r.book.isbn == isbn:
+        if r.book.isbn == reservation_in.isbn:
             if (
-                r.pickup_date <= return_date
-                and r.return_date >= pickup_date
-                or r.return_date >= pickup_date
-                and r.pickup_date <= return_date
+                r.pickup_date <= reservation_in.return_date
+                and r.return_date >= reservation_in.pickup_date
+                or r.return_date >= reservation_in.pickup_date
+                and r.pickup_date <= reservation_in.return_date
             ):
-                return "El libro ya se encuentra reservado"
-
-    r = ReservationIn(
-        book=book,
-        user=user,
-        pickup_date=pickup_date,
-        return_date=return_date,
-    )
-    return repo.create(r)
+                return Response(
+                    "El libro ya se encuentra reservado",
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                )
+    return repo.create(reservation_in)
 
 
 @router.get("/reservations")
@@ -126,11 +174,8 @@ def user_reservations(user_id: int = None):
 
 @router.delete("/reservations/{reservation_id}")
 def delete_reservations(reservation_id: int):
-    for r in repo.list():
-        if r.id == reservation_id:
-            repo.list().remove(r)
-            return "La reserva fue cancelada"
-    return "Reserva no encontrada"
+    repo.delete(reservation_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/reservations/{reservation_id}")
@@ -138,4 +183,4 @@ def details_reservations(reservation_id: int):
     for r in repo.list():
         if r.id == reservation_id:
             return r
-    return "Reserva no encontrada"
+    return Response("Reserva no encontrada", status_code=status.HTTP_400_BAD_REQUEST)
