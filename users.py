@@ -181,7 +181,7 @@ def get_user_repository(
 
 @router.get("/users")
 def list_users(repo: Annotated[UserRepository, Depends(get_user_repository)]):
-    return repo.list()
+    return [UserOut(**u) for u in repo.list()]
 
 
 @router.post("/users")
