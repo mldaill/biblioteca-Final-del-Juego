@@ -14,4 +14,4 @@ El objetivo principal es aprender y aplicar conceptos de desarrollo full-stack, 
 * Frontend: React 
 * Contenedores: Docker para la configuración del entorno de desarrollo
 
-![APISbiblioteca](assets/APISbiblioteca.png)
+![apisbiblioteca](assets/apisbiblioteca.png)
