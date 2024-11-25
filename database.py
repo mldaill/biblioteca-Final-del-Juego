@@ -1,10 +1,10 @@
 import psycopg
+import os
 
-host = 'localhost'      
+host = os.getenv('host', 'localhost')
 dbname = 'biblioteca'
 user = 'admin'         
 password = 'admin'       
-
 
 conn = None
 

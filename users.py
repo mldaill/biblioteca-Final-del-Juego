@@ -51,8 +51,7 @@ users: list[User] = [
         is_admin=False,
     ),
     User(id=4, name="Ana García", email="ana@gmail.com", password=5896, is_admin=False),
-    User(
-        id=5, name="Sofía Sanchez", email="sofi@gmail.com", password=2589, is_admin=True
+    User(id=5, name="Sofía Sanchez", email="sofi@gmail.com", password=2589, is_admin=True
     ),
 ]
 
@@ -181,7 +180,7 @@ def get_user_repository(
 
 @router.get("/users")
 def list_users(repo: Annotated[UserRepository, Depends(get_user_repository)]):
-    return [UserOut(**u) for u in repo.list()]
+    return [UserOut(**u.model_dump()) for u in repo.list()]
 
 
 @router.post("/users")
