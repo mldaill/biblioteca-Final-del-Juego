@@ -8,6 +8,7 @@ import ReservationsPage from "./pages/ReservationsPage";
 import ContactPage from "./pages/ContactPage";
 
 
+
 import React, { useState } from 'react';
 function App() {
   return (
@@ -25,7 +26,7 @@ function App() {
             <Route path="/Usuarios" element={<UsersPage />} />
             <Route path="/Reservas" element={<ReservationsPage />}/>
             <Route path="/contacto" element={<ContactPage />} />
-            <Route path="/books/isbn" element={<BookPage/>} />
+    
           </Routes>
         </main>
       </div>

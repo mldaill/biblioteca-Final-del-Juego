@@ -44,7 +44,7 @@ const HomePage = () => {
 
           {/* Favorito del mes */}
           <div className="text-center">
-            <Link to="/books/9781400000111" className="text-center block hover:cursor-pointer">
+            <Link to="/Libros" className="text-center block hover:cursor-pointer">
               <div className="bg-yellow-500 text-white p-6 rounded-full mx-auto mb-4  hover:bg-yellow-400 transform hover:translate-y-1 transition-all">
                 <i className="fas fa-star text-3xl"></i>
               </div>

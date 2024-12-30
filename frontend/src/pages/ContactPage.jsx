@@ -1,5 +1,6 @@
 import React from 'react';
 
+
 const Contact = () => {
     return (
         <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
@@ -59,10 +60,16 @@ const Contact = () => {
                 {/* Redes sociales */}
                 <section className="mb-12">
                     <h2 className="text-2xl font-semibold text-gray-700">Síguenos en nuestras redes sociales</h2>
-                    <div className="mt-4">
-                        <a href="https://facebook.com/biblioteca" target="_blank" className="text-green-600 hover:text-green-800 mr-4">Facebook</a>
-                        <a href="https://instagram.com/biblioteca" target="_blank" className="text-green-600 hover:text-green-800 mr-4">Instagram</a>
-                        <a href="https://twitter.com/biblioteca" target="_blank" className="text-green-600 hover:text-green-800">Twitter</a>
+                    <div className="mt-4 flex justify-center space-x-6">
+                        <a href="https://facebook.com/biblioteca" target="_blank" className="text-green-600 hover:text-green-800">
+                            <i className="ri-facebook-box-fill text-4xl"></i>
+                        </a>
+                        <a href="https://instagram.com/biblioteca" target="_blank" className="text-green-600 hover:text-green-800">
+                            <i className="ri-instagram-line text-4xl"></i>
+                        </a>
+                        <a href="https://twitter.com/biblioteca" target="_blank" className="text-green-600 hover:text-green-800">
+                            <i className="ri-twitter-x-line text-4xl"></i>
+                        </a>
                     </div>
                 </section>
 
