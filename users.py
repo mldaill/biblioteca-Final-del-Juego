@@ -1,5 +1,5 @@
 from typing import Annotated, Protocol, Union
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 import psycopg
 from psycopg.rows import class_row
@@ -9,23 +9,27 @@ from database import obtener_db
 class UserIn(BaseModel):
     name: str
     email: str
-    password: int
-    is_admin: bool
+    password: str
+    is_admin: bool = False
 
 
 class UserOut(BaseModel):
     id: int
     name: str
     email: str
-    is_admin: bool
+    is_admin: bool = False
 
 
 class User(BaseModel):
     id: int
     name: str
     email: str
-    password: int
-    is_admin: bool
+    password: str
+    is_admin: bool = False
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
 
 
 users: list[User] = [
@@ -33,25 +37,25 @@ users: list[User] = [
         id=1,
         name="Jose Ortiz",
         email="joseortiz@gmail.com",
-        password=1234,
+        password="1234",
         is_admin=True,
     ),
     User(
         id=2,
         name="Pedro Perez",
         email="pedroperez@gmail.com",
-        password=5678,
+        password="5678",
         is_admin=False,
     ),
     User(
         id=3,
         name="Juana Villafañe",
         email="jj@gmail.com",
-        password=9236,
+        password="9236",
         is_admin=False,
     ),
-    User(id=4, name="Ana García", email="ana@gmail.com", password=5896, is_admin=False),
-    User(id=5, name="Sofía Sanchez", email="sofi@gmail.com", password=2589, is_admin=True
+    User(id=4, name="Ana García", email="ana@gmail.com", password="5896", is_admin=False),
+    User(id=5, name="Sofía Sanchez", email="sofi@gmail.com", password="2589", is_admin=True
     ),
 ]
 
@@ -177,6 +181,30 @@ def get_user_repository(
 ) -> UserRepository:
     return UserRepositoryPostgres(conn)
 
+@router.post("/login")
+async def login(login_in: LoginIn, conn: Annotated[psycopg.Connection, Depends(obtener_db)]):
+    email = login_in.email
+    password = login_in.password
+
+    # Consultar el usuario en la base de datos
+    with conn.cursor(row_factory=class_row(User)) as cur:
+        cur.execute("SELECT id, name, email, password, is_admin FROM users WHERE email = %s", (email,))
+        user = cur.fetchone()
+
+    # Verificar si el usuario existe
+    if user is None:
+        raise HTTPException(status_code=400, detail="Email o contraseña incorrectos")
+
+    # Verificar si la contraseña es correcta
+    if user.password != password:
+        raise HTTPException(status_code=400, detail="Email o contraseña incorrectos")
+
+    # Si es admin, devolver opciones adicionales
+    if user.is_admin:
+        return {"message": "Login exitoso", "role": "admin", "options": ["Usuarios", "Lista de reservas"]}
+
+    # Si es un usuario común, devolver opciones limitadas
+    return {"message": "Login exitoso", "role": "user", "options": ["Ver libros", "Hacer reserva"]}
 
 @router.get("/users")
 def list_users(repo: Annotated[UserRepository, Depends(get_user_repository)]):
@@ -195,11 +223,15 @@ def delete_user(user_id: int, repo: Annotated[UserRepository, Depends(get_user_r
     return repo.delete(user_id)
 
 
-@router.put("/users")
-def update_user(user: User, repo: Annotated[UserRepository, Depends(get_user_repository)]):
-    return repo.save(user)
+@router.put("/users/{user_id}")
+def update_user(user_id: int, user: User, repo: Annotated[UserRepository, Depends(get_user_repository)]):
+    user.id = user_id
+    repo.save(user)
+    return {"message": "Usuario actualizado exitosamente", "user": user}
 
 
 @router.get("/users/{user_id}")
 def get_user(user_id: int, repo: Annotated[UserRepository, Depends(get_user_repository)]):
     return repo.get(user_id)
+
+

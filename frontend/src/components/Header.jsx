@@ -1,20 +1,22 @@
-import { Link } from "react-router-dom";
+import React from "react";
+import { Link } from 'react-router-dom';
 
-function Header() {
+const Header = () => {
   return (
-    <header className="bg-blue-600 text-white p-4">
-      <nav className="container mx-auto flex justify-between">
-        <h1 className="text-xl font-bold">Final del Juego</h1>
-        <ul className="flex space-x-4">
-          <li><Link to="/">Inicio</Link></li>
-          <li><Link to="/books">Libros</Link></li>
-          <li><Link to="/users">Usuarios</Link></li>
-          <li><Link to="/reservations">Reservas</Link></li>
-          <li><Link to="/contact">Contacto</Link></li>
-        </ul>
-      </nav>
-    </header>
+    <nav className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 p-4 shadow-md fixed top-0 left-0 w-full z-50">
+      <div className="max-w-7xl mx-auto flex justify-between items-center">
+        <h1 className="text-white text-3xl font-bold">Biblioteca Rosarina Final del Juego</h1>
+        <div className="space-x-4">
+          <Link to="/inicio" className="text-white hover:text-gray-200">Inicio</Link>
+          <Link to="/Ingreso" className="text-white hover:text-gray-200">Ingreso</Link>
+          <Link to="/libros" className="text-white hover:text-gray-200">Libros</Link>
+          <Link to="/usuarios" className="text-white hover:text-gray-200">Usuarios</Link>
+          <Link to="/reservas" className="text-white hover:text-gray-200">Reservas</Link>
+          <Link to="/contacto" className="text-white hover:text-gray-200">Contacto</Link>
+        </div>
+      </div>
+    </nav>
   );
-}
+};
 
 export default Header;

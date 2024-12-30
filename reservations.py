@@ -12,7 +12,7 @@ from database import obtener_db
 
 class ReservationIn(BaseModel):
     user_id: int
-    isbn: str
+    isbn: int
     pickup_date: date
     return_date: date
 
@@ -20,7 +20,7 @@ class ReservationIn(BaseModel):
 class Reservation(BaseModel):
     id: int
     user_id: int
-    isbn: str
+    isbn: int
     pickup_date: date
     return_date: date
 
@@ -135,7 +135,6 @@ def get_reservation_repository(
 ) -> ReservationRepository:
     return ReservationRepositoryPostgres(conn)
 
-
 @router.post("/reservations")
 def create_reservation(
     reservation_in: ReservationIn,
@@ -145,42 +144,51 @@ def create_reservation(
 ):
     user = user_repo.get(reservation_in.user_id)
     book = book_repo.get(reservation_in.isbn)
-    if user == None or book == None:
+    if not user or not book:
         return Response(
-            "El user o el book no existe", status_code=status.HTTP_400_BAD_REQUEST
+            "El usuario o el libro no existe", status_code=status.HTTP_400_BAD_REQUEST
         )
 
+    # Verificar conflicto de fechas
     for r in repo.list():
-        if r.book.isbn == reservation_in.isbn:
-            if (
-                r.pickup_date <= reservation_in.return_date
-                and r.return_date >= reservation_in.pickup_date
-                or r.return_date >= reservation_in.pickup_date
-                and r.pickup_date <= reservation_in.return_date
+        if r.isbn == reservation_in.isbn:
+            if not (
+                reservation_in.return_date < r.pickup_date
+                or reservation_in.pickup_date > r.return_date
             ):
                 return Response(
-                    "El libro ya se encuentra reservado",
+                    "El libro ya se encuentra reservado en las fechas solicitadas",
                     status_code=status.HTTP_400_BAD_REQUEST,
                 )
+
     return repo.create(reservation_in)
 
 
 @router.get("/reservations")
-def user_reservations(user_id: int = None):
-    if user_id == None:
+def user_reservations(
+    repo: Annotated[ReservationRepository, Depends(get_reservation_repository)],
+    user_id: int = None,
+):
+    if user_id is None:
         return repo.list()
-    return [r for r in repo.list() if r.user.id == user_id]
+    return [r for r in repo.list() if r.user_id == user_id]
 
 
 @router.delete("/reservations/{reservation_id}")
-def delete_reservations(reservation_id: int):
+def delete_reservations(
+    reservation_id: int,
+    repo: Annotated[ReservationRepository, Depends(get_reservation_repository)],
+):
     repo.delete(reservation_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/reservations/{reservation_id}")
-def details_reservations(reservation_id: int):
-    for r in repo.list():
-        if r.id == reservation_id:
-            return r
-    return Response("Reserva no encontrada", status_code=status.HTTP_400_BAD_REQUEST)
+def details_reservations(
+    reservation_id: int,
+    repo: Annotated[ReservationRepository, Depends(get_reservation_repository)],
+):
+    reservation = repo.get(reservation_id)
+    if reservation is None:
+        return Response("Reserva no encontrada", status_code=status.HTTP_404_NOT_FOUND)
+    return reservation

@@ -6,7 +6,7 @@ function BookCard({ title, author, description, image, openSynopsis, openReserve
     <div className="bg-white shadow-md rounded-lg p-4 max-w-sm">
       {image && (
         <img
-          src={image}
+          src={`http://localhost:3000${image}`}
           alt={`Portada de ${title}`}
           className="w-full h-48 object-cover rounded-md mb-4"
         />
@@ -24,7 +24,7 @@ function BookCard({ title, author, description, image, openSynopsis, openReserve
         </button>
         {/* Botón de Reservar */}
         <button
-          className="bg-green-500 text-white py-1 px-3 rounded"
+          className="bg-green-400 text-white py-1 px-3 rounded"
           onClick={openReserve}
         >
           Reservar

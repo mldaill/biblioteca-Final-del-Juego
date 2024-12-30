@@ -17,5 +17,5 @@ COPY . .
 EXPOSE 3000
 
 # Comando para iniciar la aplicación
-CMD ["uvicorn", "fastapi", "--host", "0.0.0.0", "--port", "3000", "--reload"]
+CMD ["uvicorn", "main:fastapi", "--host", "0.0.0.0", "--port", "3000", "--reload"]
 
