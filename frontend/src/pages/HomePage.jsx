@@ -19,10 +19,10 @@ const HomePage = () => {
       <section className="relative text-center py-20 px-4 mt-8">
         <div className="absolute inset-0 bg-cover bg-center opacity-30 h-full w-full" style={{ backgroundImage: "url('/hojas.jpg')" }}></div>
         <h2 className="text-white text-5xl font-extrabold mb-4">Bienvenido a tu biblioteca</h2>
-        <p className="text-white text-lg mb-8">Explora, reserva y disfruta de miles de libros en un solo lugar.</p>
+        <p className="text-white text-lg mb-8">Investigá, reservá y disfrutá de miles de libros en un solo lugar.</p>
         <Link to="/libros">
           <button className="bg-blue-500 text-white py-2 px-6 rounded-lg text-xl hover:bg-blue-400 transform hover:translate-y-1 transition-all">
-            Explorar libros
+            Buscar libros
           </button>
         </Link>
       </section>
