@@ -41,7 +41,7 @@ const UsersPage = () => {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    
+
     // Verificar que editingUser tiene un id válido antes de hacer la solicitud PUT
     if (!editingUser || !editingUser.id) {
       console.error("ID de usuario no válido");
@@ -113,6 +113,28 @@ const UsersPage = () => {
                 value={editingUser.email}
                 onChange={(e) =>
                   setEditingUser({ ...editingUser, email: e.target.value })
+                }
+              />
+            </label>
+            <label className="block mb-2">
+              Password:
+              <input
+                type="text"
+                className="p-2 border border-gray-300 rounded w-full"
+                value={editingUser.password}
+                onChange={(e) =>
+                  setEditingUser({ ...editingUser, password: e.target.value })
+                }
+              />
+            </label>
+            <label className="block mb-2">
+              Es administrador:
+              <input
+                type="checkbox" 
+                className="p-2 border border-gray-300 rounded"
+                checked={editingUser.is_admin} 
+                onChange={(e) =>
+                  setEditingUser({ ...editingUser, is_admin: e.target.checked })
                 }
               />
             </label>

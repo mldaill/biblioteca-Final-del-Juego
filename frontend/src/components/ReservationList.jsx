@@ -21,7 +21,7 @@ const ReservationList = ({ reservations, setReservations }) => {
   const handleDelete = async (id) => {
     try {
       const response = await fetch(`http://localhost:3000/reservations/${id}`, {
-        method: "DELETE", // Aquí debe ir la configuración para el método DELETE
+        method: "DELETE", 
       });
   
       if (!response.ok) {
